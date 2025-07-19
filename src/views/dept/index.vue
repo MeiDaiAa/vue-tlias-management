@@ -1,16 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { getDeptList } from '@/api/dept'
 
-const empList = ref([])
+const deptList = ref([])
 onMounted(() => {
   search()
 })
 
 const search = async() => { 
-  const result = await axios.get("https://m1.apifoxmock.com/m1/6626380-6333717-default/depts")
-  if(result.data.code){
-    empList.value = result.data.data
+  const result = await getDeptList()
+  if(result.code){
+    deptList.value = result.data
   }
 }
 
@@ -24,7 +24,7 @@ const search = async() => {
   </div>
   <!-- 表格 -->
   <div id="container">
-    <el-table :data="empList" border style="width: 100%">
+    <el-table :data="deptList" border style="width: 100%">
       <el-table-column type="index" label="序号" width="80" align="center"/>
       <el-table-column prop="name" label="部门名称" width="350" align="center"/>
       <el-table-column prop="updateTime" label="最后操作时间" width="350" align="center"/>
