@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getDeptList, addDept } from '@/api/dept'
-import { ElMessage } from 'element-plus'
+import { getListApi, addApi, getByIdApi, updateApi, deleteByIdApi } from '@/api/dept'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const deptList = ref([]) // 部门列表
 const dept = ref({ // 存储部门信息
@@ -19,7 +19,7 @@ const rules = ref({ // 部门添加表单验证规则
 
 // 获取部门列表
 const search = async () => {
-  const result = await getDeptList()
+  const result = await getListApi()
   if (result.code) {
     deptList.value = result.data
   }
@@ -31,13 +31,19 @@ const add = () => {
   title.value = '添加部门'
   dept.value = { name: '' }
 }
-// 保存部门
+// 保存部门，编辑部门
 const save = async () => {
   if (!deptFormRef.value) return;
   deptFormRef.value.validate(async (valid) => {
     if (valid) {// 表单验证成功
-      // 发送请求
-      const result = await addDept(dept.value)
+      let result;
+      if (!dept.value.id) {// 添加
+        // 发送请求
+        result = await addApi(dept.value)
+      } else {// 编辑
+        result = await updateApi(dept.value)
+      }
+
       if (result.code) {
         ElMessage.success('添加成功')
         dialogVisible.value = false
@@ -49,6 +55,43 @@ const save = async () => {
       ElMessage.error('表单校验不通过')
     }
   })
+}
+//修改
+const edit = async (id) => {
+  //数据回显
+  const result = await getByIdApi(id);
+  if (result.code) {
+    dept.value = result.data
+  } else {
+    ElMessage.error(result.msg)
+  }
+
+  dialogVisible.value = true
+  title.value = '编辑部门'
+}
+//删除
+const remove = async (id) => {
+  ElMessageBox.confirm('您确定要删除该部门吗 ?','Warning',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async() => {
+      //删除
+      const result = await deleteByIdApi(id)
+      if(result.code){
+        ElMessage.success('删除成功')
+      }else{
+        ElMessage.error(result.msg)
+      }
+
+      search()
+    })
+    .catch(() => {
+      ElMessage.info('已取消删除')
+    })
 }
 
 
@@ -74,10 +117,10 @@ onMounted(() => {
       <el-table-column prop="updateTime" label="最后操作时间" width="350" align="center" />
       <el-table-column label="操作" align="center">
         <template #default="scope">
-          <el-button type="primary" size="small" ref><el-icon>
+          <el-button type="primary" size="small" @click="edit(scope.row.id)"><el-icon>
               <Edit />
             </el-icon>编辑</el-button>
-          <el-button type="danger" size="small"><el-icon>
+          <el-button type="danger" size="small" @click="remove(scope.row.id)"><el-icon>
               <Delete />
             </el-icon>删除</el-button>
         </template>
