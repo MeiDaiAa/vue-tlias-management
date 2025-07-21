@@ -27,7 +27,9 @@ const search = async () => {
 // 点击添加部门时显示部门添加弹窗
 const add = () => {
   dialogVisible.value = true
-  deptFormRef.value.resetFields() // 重置表单
+  if(deptFormRef.value){
+    deptFormRef.value.resetFields() // 重置表单
+  }
   title.value = '添加部门'
   dept.value = { name: '' }
 }
