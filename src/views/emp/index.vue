@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { getListApi, getByIdApi } from '@/api/emp'
-import { ElMessage } from 'element-plus'
+import { getListApi, getByIdApi, addApi, updateApi, deleteByIdsApi } from '@/api/emp'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getListApi as getDeptAllApi } from '@/api/dept'
 
 const genders = ref([
@@ -40,11 +40,9 @@ const employee = ref({
   deptId: '',
   entryDate: '',
   image: '',
-  exprList: [
-    { exprDate: [], begin: '', end: '', company: '', job: '' }
-  ]
+  exprList: []
 })
-
+//{ exprDate: [], begin: '', end: '', company: '', job: '' }
 
 //* 表单数据 */
 const empForm = ref({
@@ -56,27 +54,168 @@ const empForm = ref({
 })
 //* 表格数据 */
 const empList = ref([])
+//* 新增员工 */
+const addOperate = () => {
+  dialogVisible.value = true
+  dialogTitle.value = '新增员工'
+  employee.value = { // 员工数据重置
+    username: '',
+    name: '',
+    gender: '',
+    phone: '',
+    job: '',
+    salary: '',
+    deptId: '',
+    entryDate: '',
+    image: '',
+    exprList: []
+  }
+  if (empRef.value) { // 表单重置
+    empRef.value.resetFields()
+  }
+}
+
+//表单校验规则
+const empRef = ref();
+const rules = ref({
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 2, max: 20, message: '用户名长度应在2到20个字符之间', trigger: 'blur' }
+  ],
+  name: [
+    { required: true, message: '请输入姓名', trigger: 'blur' },
+    { min: 2, max: 10, message: '姓名长度应在2到10个字符之间', trigger: 'blur' }
+  ],
+  gender: [
+    { required: true, message: '请选择性别', trigger: 'change' }
+  ],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号', trigger: 'blur' }
+  ]
+})
+
+//* 批量删除员工 */
+const selectEmps = ref([]) // 保存选中的员工id
+const handleSelectionChange = (val) => {//将选中的员工id保存在selectEmps中
+  selectEmps.value = val.map(emp => emp.id);
+}
+const delByIdsOperate = () => {
+  ElMessageBox.confirm('您确定要删除选中的员工吗 ?', 'Warning',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      if (selectEmps.value.length > 0) {
+        //删除
+        const result = await deleteByIdsApi(selectEmps.value)
+        if (result.code) {
+          ElMessage.success('删除成功')
+        } else {
+          ElMessage.error(result.msg)
+        }
+
+        query()
+      } else {
+        ElMessage.info('请选择要删除的员工')
+      }
+    })
+    .catch(() => {
+      ElMessage.info('已取消删除')
+    })
+
+}
+
+
+
+
+
 //* 编辑员工 */
 const edit = async (id) => {
-  dialogVisible.value = true
-  dialogTitle.value = '编辑员工'
-
   //数据回显
   const result = await getByIdApi(id)
   if (result.code) {
+    dialogVisible.value = true
+    dialogTitle.value = '编辑员工'
     employee.value = result.data
+    employee.value.exprList.forEach(expr => {
+      expr.exprDate = [expr.begin, expr.end]
+    })
   } else {
     ElMessage.error(result.msg)
   }
 
-  
+
 }
 //* 删除员工 */
-const remove = (id) => {
+const delById = (id) => {
+  ElMessageBox.confirm('您确定要删除该员工吗 ?', 'Warning',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(async () => {
+      //删除
+      const result = await deleteByIdsApi(id)
+      if (result.code) {
+        ElMessage.success('删除成功')
+      } else {
+        ElMessage.error(result.msg)
+      }
+
+      query()
+    })
+    .catch(() => {
+      ElMessage.info('已取消删除')
+    })
 }
 
 //* 保存员工 */
 const save = async () => {
+  // 表单校验
+  if (!empRef.value) return
+  empRef.value.validate(async (valid) => {
+    if (valid) {//表单校验通过
+      // 提交表单
+      let result
+      if (employee.value.id) {//修改员工
+        result = await updateApi(employee.value)
+      } else {//添加员工
+        result = await addApi(employee.value)
+      }
+
+      if (result.code) {
+        ElMessage.success('添加成功')
+        dialogVisible.value = false
+        query()
+      } else {
+        ElMessage.error(result.msg)
+      }
+    } else {
+      ElMessage.error('表单校验不通过')
+    }
+  })
+
+}
+
+//* 添加员工工作经历 */
+const addExpr = () => {
+  employee.value.exprList.push({
+    company: '',
+    job: '',
+    begin: '',
+    end: '',
+    exprDate: []
+  })
+}
+//* 删除员工工作经历 */
+const removeExpr = (index) => {
+  employee.value.exprList.splice(index, 1)
 }
 
 
@@ -96,7 +235,7 @@ const query = async () => {
 const clear = () => {
   empForm.value = { name: '', gender: '', date: [] }
 }
-//* 监听日期选择 */
+//* 监听日期表单选择 */
 watch(() => empForm.value.date, (newValue, oldValue) => {
   if (empForm.value.date.length == 2) {
     //将选择的日期赋给begin和end
@@ -109,11 +248,18 @@ watch(() => empForm.value.date, (newValue, oldValue) => {
   }
 }, { deep: true }) // 开启深度监听
 
-watch(() => employee.value, (newValue, oldValue) => {
-  if (employee.value.exprList && employee.value.exprList.length > 0) {
+// 监听-employee员工对象中的工作经历数据
+watch(() => employee.value.exprList, (newValue, oldValue) => {
+  if (employee.value.exprList && employee.value.exprList.length > 0) {//存在数据
+    // 遍历工作经历数据
     employee.value.exprList.forEach(expr => {
-      expr.exprDate[0] = expr.begin
-      expr.exprDate[1] = expr.end
+      if (expr.exprDate.length == 2) {
+        expr.begin = expr.exprDate[0]
+        expr.end = expr.exprDate[1]
+      } else {
+        expr.begin = ''
+        expr.end = ''
+      }
     })
   }
 }, { deep: true })
@@ -135,7 +281,7 @@ const handleCurrentChange = (val) => {
 
 // 图片上传成功后触发
 const handleAvatarSuccess = (response) => {
-  console.log(response);
+  employee.value.image = response.data
 }
 // 文件上传之前触发
 const beforeAvatarUpload = (rawFile) => {
@@ -196,9 +342,17 @@ onMounted(async () => {
         <el-button type="info" @click="clear">清空</el-button>
       </el-form-item>
     </el-form>
+  </div>
 
-    <!-- 表格 -->
-    <el-table :data="empList" border style="width: 100%">
+  <!-- 表格操作栏 -->
+  <!-- <div id="container"> -->
+  <el-button type="primary" @click="addOperate">+ 新增员工</el-button>
+  <el-button type="danger" @click="delByIdsOperate">- 批量删除</el-button>
+  <!-- </div> -->
+
+  <!-- 表格 -->
+  <div id="container">
+    <el-table :data="empList" border style="width: 100%" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="35" />
       <el-table-column prop="name" label="姓名" width="130" align="center" />
       <el-table-column label="性别" width="80" align="center">
@@ -229,7 +383,7 @@ onMounted(async () => {
           <el-button type="primary" size="small" @click="edit(scope.row.id)"><el-icon>
               <Edit />
             </el-icon>编辑</el-button>
-          <el-button type="danger" size="small" @click="remove(scope.row.id)"><el-icon>
+          <el-button type="danger" size="small" @click="delById(scope.row.id)"><el-icon>
               <Delete />
             </el-icon>删除</el-button>
         </template>
@@ -246,21 +400,22 @@ onMounted(async () => {
 
 
 
+
   <!-- 弹窗 -->
   <el-dialog v-model="dialogVisible" :title="dialogTitle">
 
-    <el-form :model="employee" label-width="80px">
+    <el-form :model="employee" label-width="80px" :rules="rules" ref="empRef">
       <!-- 基本信息 -->
       <!-- 第一行 -->
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="用户名">
+          <el-form-item label="用户名" prop="username">
             <el-input v-model="employee.username" placeholder="请输入员工用户名，2-20个字"></el-input>
           </el-form-item>
         </el-col>
 
         <el-col :span="12">
-          <el-form-item label="姓名">
+          <el-form-item label="姓名" prop="name">
             <el-input v-model="employee.name" placeholder="请输入员工姓名，2-10个字"></el-input>
           </el-form-item>
         </el-col>
@@ -269,7 +424,7 @@ onMounted(async () => {
       <!-- 第二行 -->
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="性别">
+          <el-form-item label="性别" prop="gender">
             <el-select v-model="employee.gender" placeholder="请选择性别" style="width: 100%;">
               <el-option v-for="gender in genders" :key="gender.id" :label="gender.name" :value="gender.id"></el-option>
             </el-select>
@@ -277,7 +432,7 @@ onMounted(async () => {
         </el-col>
 
         <el-col :span="12">
-          <el-form-item label="手机号">
+          <el-form-item label="手机号" prop="phone">
             <el-input v-model="employee.phone" placeholder="请输入员工手机号"></el-input>
           </el-form-item>
         </el-col>
@@ -337,7 +492,7 @@ onMounted(async () => {
       <el-row :gutter="10">
         <el-col :span="24">
           <el-form-item label="工作经历">
-            <el-button type="success" size="small" @click="">+ 添加工作经历</el-button>
+            <el-button type="success" size="small" @click="addExpr">+ 添加工作经历</el-button>
           </el-form-item>
         </el-col>
       </el-row>
@@ -365,7 +520,7 @@ onMounted(async () => {
 
         <el-col :span="2">
           <el-form-item size="small" label-width="0px">
-            <el-button type="danger">- 删除</el-button>
+            <el-button type="danger" @click="removeExpr(index)">- 删除</el-button>
           </el-form-item>
         </el-col>
       </el-row>
