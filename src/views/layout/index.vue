@@ -1,4 +1,30 @@
 <script setup>
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const logout = () => {
+  ElMessageBox.confirm('您确定要退出登录吗 ?', 'Warning',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      //退出登录
+      localStorage.removeItem('user')
+      ElMessage.success('已退出登录')
+      router.push('/login')
+    })
+    .catch(() => {
+      ElMessage.info('已取消退出')
+    })
+
+
+
+}
 
 </script>
 
@@ -14,7 +40,7 @@
               <EditPen />
             </el-icon> 修改密码 &nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;
           </a>
-          <a href="">
+          <a href="javascript:;" @click="logout">
             <el-icon>
               <SwitchButton />
             </el-icon> 退出登录
@@ -27,11 +53,11 @@
         <el-aside width="200px" class="aside">
           <el-menu router>
             <!-- 首页菜单 -->
-              <el-menu-item index="/index">
-                <el-icon>
-                  <Promotion />
-                </el-icon> 首页
-              </el-menu-item>
+            <el-menu-item index="/index">
+              <el-icon>
+                <Promotion />
+              </el-icon> 首页
+            </el-menu-item>
 
 
             <!-- 班级管理菜单 -->
@@ -41,11 +67,11 @@
                   <Menu />
                 </el-icon> 班级学员管理
               </template>
-                <el-menu-item index="/clazz">
-                  <el-icon>
-                    <HomeFilled />
-                  </el-icon>班级管理
-                </el-menu-item>
+              <el-menu-item index="/clazz">
+                <el-icon>
+                  <HomeFilled />
+                </el-icon>班级管理
+              </el-menu-item>
               <el-menu-item index="/stu">
                 <el-icon>
                   <UserFilled />

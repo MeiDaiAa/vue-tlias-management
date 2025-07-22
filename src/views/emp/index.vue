@@ -4,6 +4,11 @@ import { getListApi, getByIdApi, addApi, updateApi, deleteByIdsApi } from '@/api
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getListApi as getDeptAllApi } from '@/api/dept'
 
+const header = ref({token: ''})
+
+
+
+
 const genders = ref([
   { id: 1, name: '男' },
   { id: 2, name: '女' }
@@ -307,6 +312,12 @@ onMounted(async () => {
   } else {
     ElMessage.error(result.msg)
   }
+
+  //获取图片上传的请求头
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user && user.token) {
+    header.value.token = user.token
+  }
 })
 
 
@@ -476,7 +487,7 @@ onMounted(async () => {
         <el-col :span="24">
           <el-form-item label="头像">
             <el-upload class="avatar-uploader" action="/api/upload" :show-file-list="false"
-              :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload">
+              :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload" :headers="header">
               <img v-if="employee.image" :src="employee.image" class="avatar" />
               <el-icon v-else class="avatar-uploader-icon">
                 <Plus />
